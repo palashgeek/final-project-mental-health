@@ -1,0 +1,39 @@
+import json
+import boto3
+
+firehose = boto3.client('firehose')
+deliveryStreamName = 'PUT-RED-UdjI6'
+
+#def convertToFirehoseRecord(ddbRecord):
+ #   newImage = ddbRecord['NewImage']
+#    firehoseRecord = "{},{},{},{}".format(newImage['ID']['S'],
+#                                          newImage['date']['S'],
+ #                                         newImage['chest']['S'],
+ #                                         newImage['ankle']['S'],
+  #                                        newImage['gyro']['S'],
+  #                                        newImage['arm']['S']) + '\n'
+ #   return firehoseRecord
+
+def convertToFirehoseRecord(ddbRecord):
+    newImage = ddbRecord['NewImage']
+    chest = newImage.get('chest', {}).get('S', None)  # Get the chest attribute or None if it's missing or not a string
+    ankle = newImage.get('ankle', {}).get('N', None)  # Get the ankle attribute or None if it's missing or not a number
+    arm = newImage.get('arm', {}).get('N', None)  # Get the arm attribute or None if it's missing or not a number
+    date = newImage.get('date', {}).get('S', None)  # Get the date attribute or None if it's missing or not a string
+    gyro = newImage.get('gyro', {}).get('N', None)  # Get the gyro attribute or None if it's missing or not a number
+    
+    firehoseRecord = "{},{},{},{},{}".format(chest, ankle, arm, date, gyro)
+    return firehoseRecord
+
+
+def lambda_handler(event, context):
+    for record in event['Records']:
+        ddbRecord = record['dynamodb']
+        
+        # Check if the record contains new item
+        if 'NewImage' in ddbRecord:
+            firehoseRecord = convertToFirehoseRecord(ddbRecord)
+            result = firehose.put_record(DeliveryStreamName=deliveryStreamName, Record={'Data': firehoseRecord})
+            print(result)
+            
+    return 'Processed {} records.'.format(len(event['Records']))
